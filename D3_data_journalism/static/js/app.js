@@ -3,7 +3,7 @@ console.log("#ok")
 
 //  Defined width and height for the area of the SVG
 let svgWidth = 960;
-let svgHeight = 700;
+let svgHeight = 500;
 
 // Margins for the x,y labels
 let margin = {
@@ -48,7 +48,7 @@ function yScale(riskData, chooseY) {
     // Create the scales with domain and range
     let yLinearScale = d3.scaleLinear()
     // .domain([d3.min(riskData, d => d[chooseY]),d3.max(riskData, d => d[chooseY])])
-    .domain([0,d3.max(riskData, d => d[chooseY])])
+    .domain([2,d3.max(riskData, d => d[chooseY])])
     .range([height, 0]);
   
     return yLinearScale;
@@ -76,46 +76,78 @@ function renderYAxes(newYScale, yAxis) {
     return yAxis;
 }
 
+// // function for updating circles when changes on X Axis
+// function renderXCircles(circlesGroup, newXScale, chooseX) {
+
+//     circlesGroup.transition()
+//     .duration(1000)
+//     .attr("cx", d => newXScale(d[chooseX]));
+
+//     return circlesGroup;
+// }
+
+// // function for updating circles when changes on X Axis
+// function renderYCircles(circlesGroup, newYScale, chooseY) {
+
+//     circlesGroup.transition()
+//     .duration(1000)
+//     .attr("cy", d => newYScale(d[chooseY]));
+
+//     return circlesGroup;
+// }
+
 // function for updating circles when changes on X Axis
-function renderXCircles(circlesGroup, newXScale, chooseX) {
-
-    circlesGroup.transition()
+function renderCircles(circlesGroup, newXScale, newYScale, chooseX, chooseY) {
+    // console.log(chooseX,chooseY)
+    circlesGroup.selectAll("circle")
+    .transition()
     .duration(1000)
-    .attr("cx", d => newXScale(d[chooseX]));
-
-    return circlesGroup;
-}
-
-// function for updating circles when changes on X Axis
-function renderYCircles(circlesGroup, newYScale, chooseY) {
-
-    circlesGroup.transition()
-    .duration(1000)
+    .attr("cx", d => newXScale(d[chooseX]))
     .attr("cy", d => newYScale(d[chooseY]));
+    
+    circlesGroup.selectAll("text")
+    .transition()
+    .duration(1000)
+    .attr("x", d => newXScale(d[chooseX]))
+    .attr("y", d => newYScale(d[chooseY]));
 
     return circlesGroup;
 }
 
 // function used for updating circles group with new tooltip
-function updateToolTip(chooseX, circlesGroup) {
+function updateToolTip(chooseX, chooseY, circlesGroup) {
 
-    let label;
+    let label = "";
   
-    if (chooseX === "poverty") {
-      label = "In Poverty(%)";
-    } 
-    else if(chooseX === "age"){
+    if (chooseX == "poverty") {
+        label = "In Poverty(%)";
+    }else if(chooseX == "age"){
         label = "Age (Median)"
+    }else if(chooseX == "income"){
+        label = "Household Income (Median)";
+    }else{
+        label = "X Error"
+    } 
+
+    if (chooseY == "healthcare") {
+        label = label + " vs Lacks Healthcare (%)";
+    } 
+    else if(chooseY == "obesity"){
+        label = label + " vs Obesity (%)"
     }
-    else if(chooseX === "income"){
-      label = "Household Income (Median)";
+    else if(chooseY == "smokes"){
+        label = label + " vs Smokes (%)";
+    }else{
+        label = label + "Y Error"
     }
   
+    // console.log(label)
     let toolTip = d3.tip()
       .attr("class", "tooltip")
       .offset([80, -60])
       .html(function(d) {
-        return (`${d.state}<br>${label} ${d[chooseX]}`);
+        // console.log(d[chooseX],d[chooseY])    
+        return (`${d.state}<br>${label} <br> ${chooseX}: ${d[chooseX]} <br> ${chooseY}: ${d[chooseY]}`);
       });
   
     circlesGroup.call(toolTip);
@@ -174,17 +206,22 @@ d3.csv("static/data/data.csv").then(riskData => {
     let circlesGroup = chartGroup.selectAll("circle")
     .data(riskData)
     .enter()
-    .append("circle")
+    .append("g")
+
+    circlesGroup.append("circle")
     .attr("cx", d => xLinearScale(d[chooseX]))
-    .attr("cy", d => yLinearScale(d.healthcare))
+    .attr("cy", d => yLinearScale(d[chooseY]))
     .attr("r", 20)
     .attr("fill", "purple")
-    .attr("opacity", ".5");
+    .attr("opacity", ".5")
+    .attr("class","stateCircle")
 
-    //   circlesGroup.append("text")
-    //   .attr("x",12)
-    //   .attr("y",".35em")
-    //   .text(d => d.abbr);
+    // let texts = chartGroup.selectAll("text")
+    circlesGroup.append("text")
+    .text(d => d.abbr)
+    .attr("x", d => xLinearScale(d[chooseX]))
+    .attr("y",d => yLinearScale(d[chooseY]))
+    .attr("class","stateText")
   
     // Create group for X Axis labels
     let xLabelsGroup = chartGroup.append("g")
@@ -201,13 +238,15 @@ d3.csv("static/data/data.csv").then(riskData => {
     .classed("active", true)
     .text("In Poverty(%)");
   
+    // append on X Axis 
     let ageLabel = xLabelsGroup.append("text")
     .attr("x", 0)
     .attr("y", 40)
     .attr("value", "age") // value to grab for event listener
     .classed("inactive", true)
     .text("Age (Median)");
-      
+    
+    // append on X Axis 
     let incomeLabel = xLabelsGroup.append("text")
     .attr("x", 0)
     .attr("y", 60)
@@ -217,61 +256,58 @@ d3.csv("static/data/data.csv").then(riskData => {
   
     // append on Y Axis
     let healthcareLabel = yLabelsGroup.append("text")
-      .attr("y", 0 - margin.left + 40)
-      .attr("x", 0 - (height / 2))
-      .attr("value", "healthcare") // value to grab for event listener
-      .attr("dy", "1em")
-      .classed("active", true)
-      .text("Lacks Healthcare (%)");
+    .attr("y", 0 - margin.left + 40)
+    .attr("x", 0 - (height / 2))
+    .attr("value", "healthcare") // value to grab for event listener
+    .attr("dy", "1em")
+    .classed("active", true)
+    .text("Lacks Healthcare (%)");
     
     // append on Y Axis
     let obesityLabel = yLabelsGroup.append("text")
-      .attr("y", 0 - margin.left + 20)
-      .attr("x", 0 - (height / 2))
-      .attr("value", "obesity") // value to grab for event listener
-      .attr("dy", "1em")
-      .classed("inactive", true)
-      .text("Obesity (%)");
+    .attr("y", 0 - margin.left + 20)
+    .attr("x", 0 - (height / 2))
+    .attr("value", "obesity") // value to grab for event listener
+    .attr("dy", "1em")
+    .classed("inactive", true)
+    .text("Obesity (%)");
     
     // append on Y Axis
     let smokesLabel = yLabelsGroup.append("text")
-      .attr("y", 0 - margin.left)
-      .attr("x", 0 - (height / 2))
-      .attr("value", "smokes") // value to grab for event listener
-      .attr("dy", "1em")
-      .classed("inactive", true)
-      .text("Smokes (%)");
+    .attr("y", 0 - margin.left)
+    .attr("x", 0 - (height / 2))
+    .attr("value", "smokes") // value to grab for event listener
+    .attr("dy", "1em")
+    .classed("inactive", true)
+    .text("Smokes (%)");
     
-    // updateToolTip function above csv import
-    circlesGroup = updateToolTip(chooseX, circlesGroup);
+    // update tooltips
+    circlesGroup = updateToolTip(chooseX, chooseY, circlesGroup);
   
     // X axis labels on click event
     xLabelsGroup.selectAll("text")
     .on("click", function() {
-        // get value of selection
+        // get selected value
         let value = d3.select(this).attr("value");
         if (value !== chooseX) {
   
-            // replaces chooseX with value
             chooseX = value;
-
             // console.log(chooseX)
 
-            // functions here found above csv import
-            // updates x scale for new data
+            // update X scale
             xLinearScale = xScale(riskData, chooseX);
     
-            // updates x axis with transition
+            // updates X axis 
             xAxis = renderXAxes(xLinearScale, xAxis);
             //   yAxis = renderYAxes(yLinearScale, yAxis);
     
-            // updates circles with new x values
-            circlesGroup = renderXCircles(circlesGroup, xLinearScale, chooseX);
+            // updates circles with new Y values
+            circlesGroup = renderCircles(circlesGroup, xLinearScale, yLinearScale, chooseX, chooseY);
 
-            // updates tooltips with new info
-            circlesGroup = updateToolTip(chooseX, circlesGroup);
+            // update tooltips
+            circlesGroup = updateToolTip(chooseX, chooseY, circlesGroup);
 
-            // changes classes to change bold text
+            // change classes to notice wich one is selected
             if (chooseX === "age") {
                 ageLabel.classed("active", true)
                 .classed("inactive", false);
@@ -315,13 +351,12 @@ d3.csv("static/data/data.csv").then(riskData => {
             yAxis = renderYAxes(yLinearScale, yAxis);
     
             // updates circles with new Y values
-            circlesGroup = renderYCircles(circlesGroup, yLinearScale, chooseY);
+            circlesGroup = renderCircles(circlesGroup, xLinearScale, yLinearScale, chooseX, chooseY);
 
-            // updates tooltips with new info
-            circlesGroup = updateToolTip(chooseY, circlesGroup);
+            // update tooltips
+            circlesGroup = updateToolTip(chooseX, chooseY, circlesGroup);
 
-            // changes classes to change bold text
-            
+            // change classes to notice wich one is selected
             if (chooseY === "healthcare") {
                 healthcareLabel.classed("active", true)
                 .classed("inactive", false);
