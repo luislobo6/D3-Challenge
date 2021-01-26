@@ -146,19 +146,20 @@ function updateToolTip(chooseX, chooseY, circlesGroup) {
       .attr("class", "tooltip")
       .offset([80, -60])
       .html(function(d) {
-        // console.log(d[chooseX],d[chooseY])    
+        console.log(d.abbr,d[chooseX],d[chooseY])    
         return (`${d.state}<br>${label} <br> ${chooseX}: ${d[chooseX]} <br> ${chooseY}: ${d[chooseY]}`);
       });
   
-    circlesGroup.call(toolTip);
-  
-    circlesGroup.on("mouseover", function(data) {
-      toolTip.show(data);
-    })
-      // onmouseout event
-      .on("mouseout", function(data, index) {
-        toolTip.hide(data);
-      });
+    circlesGroup.call(toolTip)
+
+    circlesGroup.selectAll("circle")
+    .on("mouseover", data => toolTip.show(data))
+    .on("mouseout", data => toolTip.hide(data));
+    // circlesGroup.selectAll("text").on("mouseover", function(data) {
+    //     toolTip.show(data);
+    // }).on("mouseout", function(data) {
+    //     toolTip.hide(data);
+    // });
   
     return circlesGroup;
   }
@@ -208,7 +209,7 @@ d3.csv("static/data/data.csv").then(riskData => {
     .enter()
     .append("g")
 
-    circlesGroup.append("circle")
+    let circlesOnly = circlesGroup.append("circle")
     .attr("cx", d => xLinearScale(d[chooseX]))
     .attr("cy", d => yLinearScale(d[chooseY]))
     .attr("r", 20)
